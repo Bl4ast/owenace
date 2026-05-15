@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de Lore Interativa</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --cor-texto: #ffffff;
+            --cor-fundo: #000000; 
+            --fumaca-base: rgba(255, 255, 255, 0.03); 
+            --cor-scroll: rgba(255, 255, 255, 0.2);
+            --cor-toolbar: #1a1a1a;
+            --cor-borda-toolbar: #333;
+            --cor-btn-hover: #333;
+            --cor-destaque: #ffffff;
+        }
+
+        body.modo-sangrento {
+            --cor-texto: #ff1a1a;
+            --cor-fundo: #000000; 
+            --fumaca-base: rgba(255, 0, 0, 0.05);
+            --cor-scroll: rgba(255, 0, 0, 0.3);
+            --cor-toolbar: #140000;
+            --cor-borda-toolbar: #400;
+            --cor-btn-hover: #4d0000;
+            --cor-destaque: #ff0000;
+        }
+
+        body {
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            font-family: 'Georgia', serif;
+            margin: 0;
+            overflow-x: hidden;
+            transition: color 1.5s ease, background-color 1.5s ease; 
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #smoke-container {
+            position: fixed;
+            bottom: 0; 
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1; 
+            pointer-events: none; 
+            overflow: hidden;
+        }
+
+        .smoke-particle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px); 
+            background: var(--fumaca-base);
+            opacity: 0; 
+            transition: background 2s ease;
+        }
+
+        .particula {
+            position: fixed;
+            top: -150px;
+            user-select: none;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @keyframes queda-pena {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            10% { opacity: var(--opacidade); }
+            90% { opacity: var(--opacidade); }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes queda-sangue {
+            0% { transform: translateY(-10vh); opacity: 0; }
+            10% { opacity: var(--opacidade); }
+            90% { opacity: var(--opacidade); }
+            100% { transform: translateY(110vh); opacity: 0; }
+        }
+
+        .lore-container {
+            width: 100%;
+            max-width: 900px;
+            padding: 60px 25px 50px 25px; 
+            z-index: 10;
+            text-align: center;
+            position: relative; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .nome-personagem {
+            font-size: 3rem;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            cursor: pointer;
+            transition: text-shadow 0.5s ease, color 1.5s ease;
+            margin-bottom: 20px;
+            display: none; /* Agora começa escondido por padrão */
+            user-select: none;
+            outline: none;
+            padding: 5px 15px;
+            border-radius: 8px;
+        }
+
+        .nome-personagem.ativo {
+            display: inline-block;
+            animation: fadeInText 0.8s ease;
+        }
+
+        .nome-personagem:hover {
+            text-shadow: 0 0 15px var(--cor-texto);
+        }
+
+        body.modo-sangrento .nome-personagem {
+            text-shadow: 0 0 25px rgba(255, 0, 0, 0.9);
+        }
+
+        .dica {
+            font-family: sans-serif;
+            font-size: 0.8rem;
+            opacity: 0.6;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+            outline: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: 0.3s;
+            display: none; /* Começa escondido */
+        }
+
+        .dica.ativo {
+            display: block;
+            animation: fadeInText 0.8s ease;
+        }
+
+        /* Classes para quando os títulos estão em modo de edição */
+        .editavel-ativo {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px dashed rgba(255, 255, 255, 0.3);
+            cursor: text !important;
+        }
+
+        body.modo-sangrento .editavel-ativo {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px dashed rgba(255, 0, 0, 0.3);
+        }
+
+        .editor-wrapper {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.5s ease;
+            background: transparent;
+            border: 1px solid transparent;
+            box-shadow: none;
+        }
+
+        .editor-wrapper.editando {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--cor-borda-toolbar);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .toolbar {
+            background: var(--cor-toolbar);
+            padding: 10px;
+            display: none; 
+            flex-wrap: wrap;
+            gap: 5px;
+            border-bottom: 1px solid var(--cor-borda-toolbar);
+            justify-content: center;
+            transition: background 1.5s ease, border-bottom 1.5s ease;
+        }
+
+        .editor-wrapper.editando .toolbar {
+            display: flex; 
+            animation: fadeInToolbar 0.5s ease;
+        }
+
+        @keyframes fadeInToolbar {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .toolbar button, .toolbar select, .toolbar input[type="color"] {
+            background: transparent;
+            color: var(--cor-texto);
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+        }
+
+        .toolbar button:hover, .toolbar select:hover {
+            background: var(--cor-btn-hover);
+            border-color: var(--cor-borda-toolbar);
+        }
+
+        .toolbar select { font-family: sans-serif; font-size: 0.9rem; }
+        .toolbar select option { background: #222; color: #fff; }
+
+        .toolbar-divisor {
+            width: 1px;
+            background: var(--cor-borda-toolbar);
+            margin: 0 5px;
+            height: 30px;
+            align-self: center;
+        }
+
+        .area-textos {
+            width: 100%;
+            padding: 30px;
+            max-height: 50vh;
+            overflow-y: auto;
+            text-align: left;
+            box-sizing: border-box;
+        }
+
+        .area-textos::-webkit-scrollbar { width: 10px; }
+        .area-textos::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); border-radius: 0 0 10px 0; }
+        .area-textos::-webkit-scrollbar-thumb { background: var(--cor-scroll); border-radius: 5px; transition: background 1.5s ease; }
+
+        .lore-texto {
+            font-size: 1.15rem;
+            line-height: 1.8;
+            outline: none; 
+            min-height: 300px;
+            display: none;
+            user-select: text; 
+        }
+
+        .lore-texto.ativo {
+            display: block;
+            animation: fadeInText 0.8s ease;
+        }
+
+        @keyframes fadeInText {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-flutuante {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.6);
+            color: var(--cor-texto);
+            border: 1px solid var(--cor-borda-toolbar);
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 100;
+            font-family: sans-serif;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-flutuante:hover {
+            background: var(--cor-btn-hover);
+            transform: scale(1.05);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .modal-overlay.ativo {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            background: #111;
+            padding: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--cor-borda-toolbar);
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            width: 300px;
+            transform: translateY(-20px);
+            transition: transform 0.4s ease;
+        }
+
+        .modal-overlay.ativo .modal-box { transform: translateY(0); }
+
+        .modal-box h2 {
+            margin-top: 0;
+            font-family: 'Georgia', serif;
+            font-weight: normal;
+            color: var(--cor-destaque);
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            background: #000;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 5px;
+            box-sizing: border-box;
+            outline: none;
+            font-size: 1rem;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .login-box input:focus { border-color: var(--cor-destaque); }
+
+        .botoes-modal { display: flex; gap: 10px; margin-top: 10px; }
+        .botoes-modal button { flex: 1; padding: 10px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; transition: 0.2s; }
+        .btn-primario { background: #333; color: white; }
+        .btn-primario:hover { background: #555; }
+        .btn-secundario { background: transparent; color: #888; border: 1px solid #444 !important; }
+        .btn-secundario:hover { background: #222; color: white; }
+
+        #erro-senha {
+            color: #ff4444; font-family: sans-serif; font-size: 0.85rem; margin-bottom: 15px; display: none;
+        }
+
+        /* Spinner Loading */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--cor-destaque);
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+    </style>
+</head>
+<body>
+
+    <!-- Botão de Edição Superior -->
+    <div id="btn-cadeado" class="btn-flutuante" onclick="abrirLogin()">
+        <i class="fas fa-lock" id="icone-cadeado"></i> <span id="texto-btn-cadeado">Ativar Edição</span>
+    </div>
+
+    <!-- Modal de Login -->
+    <div id="modal-login" class="modal-overlay">
+        <div class="modal-box login-box">
+            <h2>Acesso Restrito</h2>
+            <p style="font-family: sans-serif; font-size: 0.85rem; color: #888; margin-bottom: 20px;">Insira a chave</p>
+            
+            <div id="erro-senha"><i class="fas fa-exclamation-triangle"></i> Senha Incorreta!</div>
+            
+            <input type="password" id="input-senha" placeholder="••••••••" autocomplete="off">
+            <div style="font-family: sans-serif; font-size: 0.75rem; color: #666; margin-bottom: 15px;">Dica: Pecado do Orgulho no <b>NOX</b></div>
+            
+            <div class="botoes-modal">
+                <button class="btn-secundario" onclick="fecharLogin()">Cancelar</button>
+                <button class="btn-primario" onclick="tentarLogin()">Destrancar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Loading (Nuvem/Supabase/Firebase) -->
+    <div id="modal-loading" class="modal-overlay">
+        <div class="modal-box">
+            <div class="spinner"></div>
+            <h2 id="loading-texto">Conectando aos arquivos...</h2>
+            <p style="font-family: sans-serif; font-size: 0.85rem; color: #888;">Sincronizando com a nuvem.</p>
+        </div>
+    </div>
+
+    <!-- Modal de Aviso/Alerta -->
+    <div id="modal-aviso" class="modal-overlay">
+        <div class="modal-box">
+            <h2>Aviso</h2>
+            <p id="texto-aviso" style="font-family: sans-serif; font-size: 0.95rem; color: #ccc; margin-bottom: 20px;"></p>
+            <button class="btn-primario" style="width: 100%;" onclick="fecharAviso()">Entendi</button>
+        </div>
+    </div>
+
+    <div id="smoke-container"></div>
+
+    <div class="lore-container">
+        
+        <!-- NOME E DICA AGORA POSSUEM VERSÕES SEPARADAS PARA BRANCO E VERMELHO -->
+        <h1 class="nome-personagem ativo" id="nome-branco" title="Clique para alterar a personalidade"></h1>
+        <h1 class="nome-personagem" id="nome-vermelho" title="Clique para alterar a personalidade"></h1>
+        
+        <div class="dica ativo" id="dica-branco"></div>
+        <div class="dica" id="dica-vermelho"></div>
+        
+        <div class="editor-wrapper" id="editor-wrapper">
+            <div class="toolbar" id="toolbar">
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('bold')" title="Negrito"><i class="fas fa-bold"></i></button>
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('italic')" title="Itálico"><i class="fas fa-italic"></i></button>
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('underline')" title="Sublinhado"><i class="fas fa-underline"></i></button>
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('strikeThrough')" title="Tachado"><i class="fas fa-strikethrough"></i></button>
+                
+                <div class="toolbar-divisor"></div>
+                
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('justifyLeft')" title="Alinhar à Esquerda"><i class="fas fa-align-left"></i></button>
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('justifyCenter')" title="Centralizar"><i class="fas fa-align-center"></i></button>
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('justifyRight')" title="Alinhar à Direita"><i class="fas fa-align-right"></i></button>
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('justifyFull')" title="Justificar"><i class="fas fa-align-justify"></i></button>
+                
+                <div class="toolbar-divisor"></div>
+
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('insertUnorderedList')" title="Lista com Marcadores"><i class="fas fa-list-ul"></i></button>
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('insertOrderedList')" title="Lista Numerada"><i class="fas fa-list-ol"></i></button>
+
+                <div class="toolbar-divisor"></div>
+
+                <select onmousedown="event.preventDefault()" onchange="formatarTexto('formatBlock', this.value)" title="Formato do Texto">
+                    <option value="P">Parágrafo</option>
+                    <option value="H2">Título 1</option>
+                    <option value="H3">Título 2</option>
+                </select>
+
+                <select onmousedown="event.preventDefault()" onchange="formatarTexto('fontSize', this.value)" title="Tamanho da Fonte">
+                    <option value="">Tamanho</option>
+                    <option value="3">Padrão</option>
+                    <option value="4">Grande</option>
+                    <option value="5">Muito Grande</option>
+                    <option value="6">Enorme</option>
+                </select>
+
+                <div class="toolbar-divisor"></div>
+
+                <!-- O input color usa oninput para atualizar em tempo real -->
+                <input type="color" oninput="formatarTexto('foreColor', this.value)" title="Cor da Fonte" value="#ffffff" id="colorPicker">
+                <button onmousedown="event.preventDefault()" onclick="formatarTexto('removeFormat')" title="Remover Formatação"><i class="fas fa-eraser"></i></button>
+            </div>
+
+            <div class="area-textos">
+                <!-- TEXTO BRANCO (Vazio por padrão, aguardando Supabase) -->
+                <div id="texto-branco" class="lore-texto ativo" contenteditable="false"></div>
+
+                <!-- TEXTO VERMELHO (Vazio por padrão, aguardando Supabase) -->
+                <div id="texto-vermelho" class="lore-texto" contenteditable="false"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Importando a biblioteca oficial do Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ==========================================
+        // 1. SUAS CHAVES DO SUPABASE (COLE AQUI)
+        const supabaseUrl = 'https://afrhflyibkjywsuefgno.supabase.co'; // <--- SUA PROJECT URL AQUI
+        const supabaseKey = 'sb_publishable_oteHwr_i_hGi8SFBDzZCmA_K5z7hjG5';     // <--- SUA ANON KEY AQUI
+        
+        // CORREÇÃO: Usando 'window.supabase' e nomeando como 'supabaseClient' para evitar conflito fatal
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const fichaId = 'personagem_principal'; // ID para a ficha no banco de dados
+
+        // Variáveis de Elementos HTML de Loading
+        const modalLoading = document.getElementById('modal-loading');
+        const loadingTexto = document.getElementById('loading-texto');
+        
+        function mostrarLoading(texto) {
+            loadingTexto.innerText = texto;
+            modalLoading.classList.add('ativo');
+        }
+        function esconderLoading() {
+            modalLoading.classList.remove('ativo');
+        }
+
+        // Conecta no Supabase assim que a página abre
+        async function inicializarBanco() {
+            mostrarLoading("Conectando ao Supabase...");
+            try {
+                await carregarDados();
+            } catch (error) {
+                console.error("Erro ao conectar:", error);
+                mostrarAviso("Não foi possível conectar ao banco de dados Supabase.");
+            } finally {
+                esconderLoading();
+            }
+        }
+
+        async function carregarDados() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('fichas_lore')
+                    .select('*')
+                    .eq('id', fichaId)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') throw error; // Ignora erro inofensivo se a linha ainda não existir
+
+                if (data) {
+                    if(data.nome_personagem) document.getElementById('nome-branco').innerText = data.nome_personagem;
+                    if(data.nome_vermelho) document.getElementById('nome-vermelho').innerText = data.nome_vermelho;
+                    if(data.dica_personagem) document.getElementById('dica-branco').innerText = data.dica_personagem;
+                    if(data.dica_vermelha) document.getElementById('dica-vermelho').innerText = data.dica_vermelha;
+                    if(data.texto_branco) document.getElementById('texto-branco').innerHTML = data.texto_branco;
+                    if(data.texto_vermelho) document.getElementById('texto-vermelho').innerHTML = data.texto_vermelho;
+                } else {
+                    // Define placeholders se o banco estiver vazio para facilitar a primeira edição
+                    document.getElementById('nome-branco').innerText = "Nome do Personagem";
+                    document.getElementById('nome-vermelho').innerText = "Nome Obscuro";
+                    document.getElementById('dica-branco').innerText = "CLIQUE NO NOME PARA ALTERNAR ENTRE LUZ E SANGUE";
+                    document.getElementById('dica-vermelho').innerText = "A VERDADE FOI REVELADA";
+                    document.getElementById('texto-branco').innerHTML = "<h2>História Oficial</h2><p>Escreva a lore aqui.</p>";
+                    document.getElementById('texto-vermelho').innerHTML = "<h2>Segredos</h2><p>Escreva a lore sombria aqui.</p>";
+                }
+            } catch (e) {
+                console.error("Erro ao carregar dados do Supabase:", e);
+            }
+        }
+
+        // Função ativada quando você clica em "Salvar e Sair"
+        window.salvarParaNuvem = async function() {
+            mostrarLoading("Salvando no Supabase...");
+            try {
+                const { error } = await supabaseClient
+                    .from('fichas_lore')
+                    .upsert({ 
+                        id: fichaId,
+                        nome_personagem: document.getElementById('nome-branco').innerText,
+                        nome_vermelho: document.getElementById('nome-vermelho').innerText,
+                        dica_personagem: document.getElementById('dica-branco').innerText,
+                        dica_vermelha: document.getElementById('dica-vermelho').innerText,
+                        texto_branco: document.getElementById('texto-branco').innerHTML,
+                        texto_vermelho: document.getElementById('texto-vermelho').innerHTML,
+                        updated_at: new Date().toISOString()
+                    });
+                
+                if (error) throw error;
+            } catch (e) {
+                console.error("Erro ao salvar:", e);
+                mostrarAviso("Erro do Supabase: " + (e.message || "Tabela não encontrada. Você executou o comando SQL no seu Supabase?"));
+            } finally {
+                esconderLoading();
+            }
+        };
+
+        window.onload = inicializarBanco;
+
+        const body = document.body;
+        const nomeBranco = document.getElementById('nome-branco');
+        const nomeVermelho = document.getElementById('nome-vermelho');
+        const dicaBranco = document.getElementById('dica-branco');
+        const dicaVermelho = document.getElementById('dica-vermelho');
+        const smokeContainer = document.getElementById('smoke-container');
+        const textoBranco = document.getElementById('texto-branco');
+        const textoVermelho = document.getElementById('texto-vermelho');
+        const colorPicker = document.getElementById('colorPicker');
+        
+        let intervaloParticulas = null;
+        let animacaoFumaca = null;
+        let particulasFumaca = [];
+
+        // Sistema de Modais e Edição
+        const modalLogin = document.getElementById('modal-login');
+        const inputSenha = document.getElementById('input-senha');
+        const erroSenha = document.getElementById('erro-senha');
+        const editorWrapper = document.getElementById('editor-wrapper');
+        const textoBtnCadeado = document.getElementById('texto-btn-cadeado');
+        const iconeCadeado = document.getElementById('icone-cadeado');
+        const modalAviso = document.getElementById('modal-aviso');
+        
+        let modoEdicaoAtivo = false;
+
+        function mostrarAviso(mensagem) {
+            document.getElementById('texto-aviso').innerText = mensagem;
+            modalAviso.classList.add('ativo');
+        }
+
+        function fecharAviso() {
+            modalAviso.classList.remove('ativo');
+        }
+
+        async function abrirLogin() {
+            if (modoEdicaoAtivo) {
+                // Ao clicar em Salvar e Sair
+                await window.salvarParaNuvem();
+                sairModoEdicao();
+                return;
+            }
+            inputSenha.value = '';
+            erroSenha.style.display = 'none';
+            modalLogin.classList.add('ativo');
+            setTimeout(() => inputSenha.focus(), 100);
+        }
+
+        function fecharLogin() {
+            modalLogin.classList.remove('ativo');
+        }
+
+        function tentarLogin() {
+            if (inputSenha.value === 'Blast') {
+                ativarModoEdicao();
+                fecharLogin();
+            } else {
+                erroSenha.style.display = 'block';
+                inputSenha.value = '';
+                inputSenha.focus();
+            }
+        }
+
+        inputSenha.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') tentarLogin();
+        });
+
+        function ativarModoEdicao() {
+            modoEdicaoAtivo = true;
+            
+            // Destranca os textos de lore
+            textoBranco.setAttribute('contenteditable', 'true');
+            textoVermelho.setAttribute('contenteditable', 'true');
+            
+            // Destranca Títulos e Dicas
+            nomeBranco.setAttribute('contenteditable', 'true');
+            nomeVermelho.setAttribute('contenteditable', 'true');
+            dicaBranco.setAttribute('contenteditable', 'true');
+            dicaVermelho.setAttribute('contenteditable', 'true');
+            
+            nomeBranco.classList.add('editavel-ativo');
+            nomeVermelho.classList.add('editavel-ativo');
+            dicaBranco.classList.add('editavel-ativo');
+            dicaVermelho.classList.add('editavel-ativo');
+
+            // Exibe a barra de ferramentas
+            editorWrapper.classList.add('editando');
+            
+            // Muda o botão superior
+            textoBtnCadeado.innerText = "Salvar e Sair";
+            iconeCadeado.className = "fas fa-save";
+        }
+
+        function sairModoEdicao() {
+            modoEdicaoAtivo = false;
+            
+            // Tranca os textos
+            textoBranco.setAttribute('contenteditable', 'false');
+            textoVermelho.setAttribute('contenteditable', 'false');
+            
+            // Tranca Títulos e Dicas
+            nomeBranco.setAttribute('contenteditable', 'false');
+            nomeVermelho.setAttribute('contenteditable', 'false');
+            dicaBranco.setAttribute('contenteditable', 'false');
+            dicaVermelho.setAttribute('contenteditable', 'false');
+            
+            nomeBranco.classList.remove('editavel-ativo');
+            nomeVermelho.classList.remove('editavel-ativo');
+            dicaBranco.classList.remove('editavel-ativo');
+            dicaVermelho.classList.remove('editavel-ativo');
+            
+            // Esconde a barra de ferramentas
+            editorWrapper.classList.remove('editando');
+            
+            // Retorna o botão ao normal
+            textoBtnCadeado.innerText = "Ativar Edição";
+            iconeCadeado.className = "fas fa-lock";
+        }
+
+        function formatarTexto(comando, valor = null) {
+            if (!modoEdicaoAtivo) return; 
+            document.execCommand(comando, false, valor);
+            if (textoBranco.classList.contains('ativo')) textoBranco.focus();
+            else textoVermelho.focus();
+        }
+
+        function criarParticula() {
+            const p = document.createElement('div');
+            p.className = 'particula';
+            const eModoSangrento = body.classList.contains('modo-sangrento');
+            
+            if (eModoSangrento) {
+                p.innerHTML = '';
+                p.style.width = '2.5px'; 
+                p.style.height = Math.random() * 150 + 100 + 'px'; 
+                p.style.background = 'linear-gradient(to bottom, transparent, rgba(255, 0, 0, 0.9), #ff0000)';
+                p.style.setProperty('--opacidade', (Math.random() * 0.5 + 0.3).toString()); 
+                p.style.animationName = 'queda-sangue'; 
+                p.style.animationDuration = Math.random() * 0.4 + 0.3 + 's'; 
+                p.style.animationTimingFunction = 'linear';
+            } else {
+                p.innerHTML = '🪶';
+                p.style.filter = 'brightness(0) invert(1) drop-shadow(0 0 5px rgba(255,255,255,0.8))'; 
+                p.style.fontSize = Math.random() * 40 + 60 + 'px'; 
+                p.style.setProperty('--opacidade', '0.6');
+                p.style.animationName = 'queda-pena'; 
+                p.style.animationDuration = Math.random() * 5 + 10 + 's'; 
+                p.style.animationDelay = Math.random() * 2 + 's';
+                p.style.animationTimingFunction = 'linear';
+            }
+
+            p.style.left = Math.random() * 100 + 'vw';
+            document.body.appendChild(p);
+            setTimeout(() => { p.remove(); }, (eModoSangrento ? 1000 : 16000));
+        }
+
+        function criarParticulaFumaca(preAquecer = false) {
+            const f = document.createElement('div');
+            f.className = 'smoke-particle';
+            const tamanho = Math.random() * 400 + 350; 
+            f.style.width = tamanho + 'px'; f.style.height = tamanho + 'px';
+            f.style.left = (Math.random() * 120 - 10) + 'vw'; 
+            f.yBase = -25 + Math.random() * 15; 
+            f.amplitudeY = Math.random() * 4 + 2; 
+            f.frequenciaY = Math.random() * 0.01 + 0.005; 
+            f.vidaUtil = Math.random() * 600 + 400; 
+            f.idade = preAquecer ? Math.random() * f.vidaUtil : 0; 
+            f.style.opacity = '0'; 
+            smokeContainer.appendChild(f);
+            particulasFumaca.push(f);
+        }
+
+        for(let i = 0; i < 50; i++) criarParticulaFumaca(true);
+
+        function animarFumaca() {
+            for (let i = particulasFumaca.length - 1; i >= 0; i--) {
+                const f = particulasFumaca[i];
+                f.idade++;
+                f.style.bottom = (f.yBase + Math.sin(f.frequenciaY * f.idade) * f.amplitudeY) + 'vh';
+                let opacidadeAtual = Math.max(0, (Math.sin((f.idade / f.vidaUtil) * Math.PI) * 0.25) + (Math.sin(f.frequenciaY * 3 * f.idade) * 0.05));
+                f.style.opacity = opacidadeAtual.toString();
+
+                if (f.idade >= f.vidaUtil) { f.remove(); particulasFumaca.splice(i, 1); }
+            }
+            if (particulasFumaca.length < 50) criarParticulaFumaca();
+            animacaoFumaca = requestAnimationFrame(animarFumaca);
+        }
+
+        intervaloParticulas = setInterval(criarParticula, 1500);
+        animacaoFumaca = requestAnimationFrame(animarFumaca); 
+
+        // Função responsável por alterar os lados
+        function alternarLados() {
+            // Se estiver editando, não troca de modo ao clicar no texto do título
+            if(modoEdicaoAtivo) return; 
+
+            body.classList.toggle('modo-sangrento');
+            
+            if (body.classList.contains('modo-sangrento')) {
+                textoBranco.classList.remove('ativo');
+                nomeBranco.classList.remove('ativo');
+                dicaBranco.classList.remove('ativo');
+
+                textoVermelho.classList.add('ativo');
+                nomeVermelho.classList.add('ativo');
+                dicaVermelho.classList.add('ativo');
+
+                colorPicker.value = "#ff1a1a"; 
+            } else {
+                textoVermelho.classList.remove('ativo');
+                nomeVermelho.classList.remove('ativo');
+                dicaVermelho.classList.remove('ativo');
+
+                textoBranco.classList.add('ativo');
+                nomeBranco.classList.add('ativo');
+                dicaBranco.classList.add('ativo');
+
+                colorPicker.value = "#ffffff"; 
+            }
+            
+            clearInterval(intervaloParticulas);
+            document.querySelectorAll('.particula').forEach(el => el.remove());
+
+            if (body.classList.contains('modo-sangrento')) {
+                intervaloParticulas = setInterval(criarParticula, 40); 
+            } else {
+                intervaloParticulas = setInterval(criarParticula, 1500); 
+            }
+        }
+
+        // Troca de Lados (Click no nome)
+        nomeBranco.addEventListener('click', alternarLados);
+        nomeVermelho.addEventListener('click', alternarLados);
+    </script>
+</body>
+</html>
