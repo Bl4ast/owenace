@@ -355,10 +355,33 @@
             margin: 0 auto 20px auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* TELA DE BLOQUEIO */
+        #tela-bloqueio {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #050000; z-index: 999999;
+            display: none; /* Só aparece se for ativada pelo JS */
+            flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; color: #ff1a1a; font-family: 'Georgia', serif;
+        }
+        #tela-bloqueio h1 { font-size: 3rem; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 20px rgba(255,0,0,0.8); margin-bottom: 20px; }
+        #tela-bloqueio p { font-family: sans-serif; color: #888; margin-bottom: 30px; }
+        #tela-bloqueio a { padding: 12px 25px; background: #1a0000; color: white; text-decoration: none; border: 1px solid #400; border-radius: 5px; font-family: sans-serif; transition: 0.3s; }
+        #tela-bloqueio a:hover { background: #300; border-color: #f00; }
         
     </style>
 </head>
 <body>
+
+    <!-- Tela de Bloqueio (Ativada via JS em domínios falsos) -->
+    <div id="tela-bloqueio">
+        <div>
+            <i class="fas fa-shield-alt" style="font-size: 4rem; margin-bottom: 20px;"></i>
+            <h1>Acesso Negado</h1>
+            <p></p>
+            <a href="https://fichaowenace.vercel.app/">Ir para fichaowenace.vercel.app</a>
+        </div>
+    </div>
 
     <!-- Botão de Edição Superior -->
     <div id="btn-cadeado" class="btn-flutuante" onclick="abrirLogin()">
@@ -369,12 +392,12 @@
     <div id="modal-login" class="modal-overlay">
         <div class="modal-box login-box">
             <h2>Acesso Restrito</h2>
-            <p style="font-family: sans-serif; font-size: 0.85rem; color: #888; margin-bottom: 20px;">Insira a chave</p>
+            <p style="font-family: sans-serif; font-size: 0.85rem; color: #888; margin-bottom: 20px;">Insira a chave do criador para alterar a lore.</p>
             
             <div id="erro-senha"><i class="fas fa-exclamation-triangle"></i> Senha Incorreta!</div>
             
             <input type="password" id="input-senha" placeholder="••••••••" autocomplete="off">
-            <div style="font-family: sans-serif; font-size: 0.75rem; color: #666; margin-bottom: 15px;">Dica: Pecado do Orgulho no <b>NOX</b></div>
+            <div style="font-family: sans-serif; font-size: 0.75rem; color: #666; margin-bottom: 15px;">Dica: A senha padrão é <b>admin</b></div>
             
             <div class="botoes-modal">
                 <button class="btn-secundario" onclick="fecharLogin()">Cancelar</button>
@@ -467,6 +490,31 @@
     <!-- Importando a biblioteca oficial do Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // ==========================================
+        // 0. PROTEÇÃO DE DOMÍNIO ESTRITA (VERCEL)
+        // ==========================================
+        const hostPermitido = 'fichaowenace.vercel.app';
+        const hostAtual = window.location.hostname;
+
+        // Se o site não estiver rodando EXATAMENTE no domínio oficial, ele bloqueia.
+        // Isso bloqueia o VS Code (localhost, 127.0.0.1), arquivos locais e pessoas que clonarem o site.
+        if (hostAtual !== hostPermitido) {
+            document.getElementById('tela-bloqueio').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            
+            // Destrói o resto do site para evitar inspeção de elementos
+            const smoke = document.getElementById('smoke-container');
+            if(smoke) smoke.remove();
+            
+            const lore = document.querySelector('.lore-container');
+            if(lore) lore.remove();
+            
+            const btn = document.getElementById('btn-cadeado');
+            if(btn) btn.remove();
+            
+            throw new Error("Acesso bloqueado: Domínio não autorizado.");
+        }
+
         // ==========================================
         // 1. SUAS CHAVES DO SUPABASE (COLE AQUI)
         const supabaseUrl = 'https://afrhflyibkjywsuefgno.supabase.co'; // <--- SUA PROJECT URL AQUI
@@ -612,7 +660,7 @@
         }
 
         function tentarLogin() {
-            if (inputSenha.value === 'Blast') {
+            if (inputSenha.value === 'admin') {
                 ativarModoEdicao();
                 fecharLogin();
             } else {
